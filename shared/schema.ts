@@ -6,6 +6,7 @@ export const lessons = pgTable("lessons", {
   id: serial("id").primaryKey(),
   notionId: text("notion_id").notNull().unique(),
   lesson: text("lesson").notNull(),
+  content: text("content"),  // Add content field
   importance: text("importance"),
   category: text("category"),
   category1: text("category1"),
@@ -23,6 +24,7 @@ export const lessonResponseSchema = z.object({
     id: z.number(),
     notionId: z.string(),
     lesson: z.string(),
+    content: z.string().nullable(),
     importance: z.string().nullable(),
     category: z.string().nullable(),
     category1: z.string().nullable(),

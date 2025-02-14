@@ -3,7 +3,6 @@ import { createServer } from "http";
 import { Client } from "@notionhq/client";
 import { storage } from "./storage";
 import { lessonResponseSchema } from "@shared/schema";
-import { z } from "zod";
 
 if (!process.env.NOTION_API_KEY || !process.env.NOTION_DATABASE_ID) {
   throw new Error("Missing required environment variables");
@@ -11,6 +10,27 @@ if (!process.env.NOTION_API_KEY || !process.env.NOTION_DATABASE_ID) {
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const DATABASE_ID = process.env.NOTION_DATABASE_ID;
+
+async function getPageContent(pageId: string): Promise<string> {
+  try {
+    const blocks = await notion.blocks.children.list({ block_id: pageId });
+
+    // Combine all block contents into a single string
+    const content = blocks.results.map(block => {
+      // Type assertion since we know these blocks are from Notion
+      const b = block as any;
+      if (b.type === 'paragraph') {
+        return b.paragraph.rich_text.map((t: any) => t.plain_text).join('');
+      }
+      return '';
+    }).filter(Boolean).join('\n\n');
+
+    return content;
+  } catch (error) {
+    console.error(`Error fetching content for page ${pageId}:`, error);
+    return '';
+  }
+}
 
 export async function registerRoutes(app: Express) {
   app.get("/api/lessons/refresh", async (req, res) => {
@@ -37,9 +57,13 @@ export async function registerRoutes(app: Express) {
           continue;
         }
 
+        // Fetch the full page content
+        const pageContent = await getPageContent(page.id);
+
         await storage.insertLesson({
           notionId: page.id,
           lesson: lessonContent,
+          content: pageContent,
           importance: props.Importance?.multi_select?.[0]?.name || null,
           category: props.Category?.multi_select?.[0]?.name || null,
           category1: props.Category1?.multi_select?.[0]?.name || null,

@@ -22,7 +22,14 @@ export class MemStorage implements IStorage {
 
   async insertLesson(lesson: InsertLesson): Promise<Lesson> {
     const id = this.currentId++;
-    const newLesson = { ...lesson, id };
+    const newLesson: Lesson = {
+      ...lesson,
+      id,
+      importance: lesson.importance || null,
+      category: lesson.category || null,
+      category1: lesson.category1 || null,
+      content: lesson.content || null
+    };
     this.lessons.set(id, newLesson);
     return newLesson;
   }

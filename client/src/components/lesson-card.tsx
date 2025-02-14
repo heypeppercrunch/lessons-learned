@@ -44,6 +44,11 @@ export function LessonCard({ lesson }: Props) {
             {lesson.lesson}
           </CardTitle>
         </CardHeader>
+        {lesson.content && (
+          <CardContent className="text-muted-foreground whitespace-pre-wrap">
+            {lesson.content}
+          </CardContent>
+        )}
       </Card>
     </motion.div>
   );
