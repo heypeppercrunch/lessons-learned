@@ -45,7 +45,7 @@ export function LessonGrid() {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="flex flex-col space-y-6">
         {data.lessons.map((lesson) => (
           <LessonCard key={lesson.id} lesson={lesson} />
         ))}

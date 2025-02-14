@@ -21,19 +21,16 @@ export function LessonCard({ lesson }: Props) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="h-full">
+      <Card>
         <CardHeader className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag, i) => (
-              <Badge key={i} className={`${tag.color} text-white`}>
-                {tag.label}
-              </Badge>
-            ))}
-          </div>
-          <div className="flex items-start justify-between gap-4">
-            <CardTitle className="text-xl leading-tight">
-              {lesson.lesson}
-            </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag, i) => (
+                <Badge key={i} className={`${tag.color} text-white`}>
+                  {tag.label}
+                </Badge>
+              ))}
+            </div>
             <a 
               href={lesson.notionUrl}
               target="_blank"
@@ -43,6 +40,9 @@ export function LessonCard({ lesson }: Props) {
               <ExternalLink className="h-5 w-5" />
             </a>
           </div>
+          <CardTitle className="text-xl leading-normal">
+            {lesson.lesson}
+          </CardTitle>
         </CardHeader>
       </Card>
     </motion.div>
