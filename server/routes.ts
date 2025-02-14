@@ -22,15 +22,23 @@ export async function registerRoutes(app: Express) {
       await storage.clearLessons();
 
       for (const page of response.results) {
-        const properties = page.properties as any;
+        // Type assertion to access properties safely
+        const props = page.properties as Record<string, any>;
+
+        const lesson = props.Lesson?.rich_text?.[0]?.text?.content || "";
+        if (!lesson) {
+          console.log("Skipping entry with no lesson content:", page.id);
+          continue;
+        }
+
         await storage.insertLesson({
           notionId: page.id,
-          lesson: properties.Lesson?.rich_text?.[0]?.plain_text || "",
-          importance: properties.Importance?.select?.name || null,
-          category: properties.Category?.select?.name || null,
-          category1: properties.Category1?.select?.name || null,
-          notionUrl: page.url,
-          properties: properties
+          lesson: lesson,
+          importance: props.Importance?.select?.name || null,
+          category: props.Category?.select?.name || null,
+          category1: props.Category1?.select?.name || null,
+          notionUrl: page.url || "",
+          properties: props
         });
       }
 
@@ -47,10 +55,11 @@ export async function registerRoutes(app: Express) {
       const count = Number(req.query.count) || 3;
       const lessons = await storage.getRandomLessons(count);
       const response = { lessons };
-      
+
       const parsed = lessonResponseSchema.parse(response);
       res.json(parsed);
     } catch (error) {
+      console.error("Error getting random lessons:", error);
       res.status(500).json({ message: "Failed to get random lessons" });
     }
   });
