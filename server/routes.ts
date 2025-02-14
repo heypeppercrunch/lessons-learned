@@ -31,7 +31,7 @@ export async function registerRoutes(app: Express) {
         // Log the properties to help debug
         console.log("Properties for entry:", page.id, JSON.stringify(props));
 
-        const lessonContent = props.Lesson?.rich_text?.[0]?.plain_text;
+        const lessonContent = props.Lesson?.title?.[0]?.plain_text;
         if (!lessonContent) {
           console.log("Skipping entry with no lesson content:", page.id);
           continue;
@@ -40,9 +40,9 @@ export async function registerRoutes(app: Express) {
         await storage.insertLesson({
           notionId: page.id,
           lesson: lessonContent,
-          importance: props.Importance?.select?.name || null,
-          category: props.Category?.select?.name || null,
-          category1: props.Category1?.select?.name || null,
+          importance: props.Importance?.multi_select?.[0]?.name || null,
+          category: props.Category?.multi_select?.[0]?.name || null,
+          category1: props.Category1?.multi_select?.[0]?.name || null,
           notionUrl: (page as any).url || "",
           properties: props
         });
