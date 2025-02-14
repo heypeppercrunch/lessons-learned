@@ -4,6 +4,7 @@ export interface IStorage {
   getLessons(): Promise<Lesson[]>;
   insertLesson(lesson: InsertLesson): Promise<Lesson>;
   clearLessons(): Promise<void>;
+  getRandomLessons(count: number): Promise<Lesson[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -19,15 +20,21 @@ export class MemStorage implements IStorage {
     return Array.from(this.lessons.values());
   }
 
-  async insertLesson(insertLesson: InsertLesson): Promise<Lesson> {
+  async insertLesson(lesson: InsertLesson): Promise<Lesson> {
     const id = this.currentId++;
-    const lesson: Lesson = { ...insertLesson, id };
-    this.lessons.set(id, lesson);
-    return lesson;
+    const newLesson = { ...lesson, id };
+    this.lessons.set(id, newLesson);
+    return newLesson;
   }
 
   async clearLessons(): Promise<void> {
     this.lessons.clear();
+  }
+
+  async getRandomLessons(count: number): Promise<Lesson[]> {
+    const allLessons = Array.from(this.lessons.values());
+    const shuffled = allLessons.sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
   }
 }
 

@@ -1,67 +1,57 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { createServer } from "http";
 import { Client } from "@notionhq/client";
-import { notionLessonSchema, type InsertLesson } from "@shared/schema";
+import { storage } from "./storage";
+import { lessonResponseSchema } from "@shared/schema";
 import { z } from "zod";
 
-if (!process.env.NOTION_API_KEY) {
-  throw new Error("NOTION_API_KEY environment variable not set");
-}
-
-if (!process.env.NOTION_DATABASE_ID) {
-  throw new Error("NOTION_DATABASE_ID environment variable not set");
+if (!process.env.NOTION_API_KEY || !process.env.NOTION_DATABASE_ID) {
+  throw new Error("Missing required environment variables");
 }
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
+const DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express) {
   app.get("/api/lessons/refresh", async (req, res) => {
     try {
       const response = await notion.databases.query({
-        database_id: process.env.NOTION_DATABASE_ID!,
+        database_id: DATABASE_ID,
       });
 
       await storage.clearLessons();
 
-      const lessons = response.results.map((result) => {
-        const parsed = notionLessonSchema.parse(result);
-        const lesson: InsertLesson = {
-          notionId: parsed.id,
-          importance: parsed.properties.Importance.select?.name || null,
-          category: parsed.properties.Category.select?.name || null,
-          category1: parsed.properties.Category1.select?.name || null,
-          lesson: parsed.properties.Lesson.rich_text[0]?.plain_text || "",
-          notionUrl: parsed.url
-        };
-        return lesson;
-      });
-
-      for (const lesson of lessons) {
-        await storage.insertLesson(lesson);
+      for (const page of response.results) {
+        const properties = page.properties as any;
+        await storage.insertLesson({
+          notionId: page.id,
+          lesson: properties.Lesson?.rich_text?.[0]?.plain_text || "",
+          importance: properties.Importance?.select?.name || null,
+          category: properties.Category?.select?.name || null,
+          category1: properties.Category1?.select?.name || null,
+          notionUrl: page.url,
+          properties: properties
+        });
       }
 
-      res.json({ message: "Lessons refreshed successfully" });
+      const lessons = await storage.getLessons();
+      res.json({ lessons });
     } catch (error) {
-      console.error("Error refreshing lessons:", error);
-      if (error instanceof z.ZodError) {
-        res.status(500).json({ message: "Invalid data from Notion API" });
-      } else {
-        res.status(500).json({ message: "Failed to refresh lessons" });
-      }
+      console.error("Error fetching from Notion:", error);
+      res.status(500).json({ message: "Failed to fetch lessons from Notion" });
     }
   });
 
-  app.get("/api/lessons", async (req, res) => {
+  app.get("/api/lessons/random", async (req, res) => {
     try {
-      const lessons = await storage.getLessons();
-      const randomLessons = lessons
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 3);
-      res.json(randomLessons);
+      const count = Number(req.query.count) || 3;
+      const lessons = await storage.getRandomLessons(count);
+      const response = { lessons };
+      
+      const parsed = lessonResponseSchema.parse(response);
+      res.json(parsed);
     } catch (error) {
-      console.error("Error fetching lessons:", error);
-      res.status(500).json({ message: "Failed to fetch lessons" });
+      res.status(500).json({ message: "Failed to get random lessons" });
     }
   });
 
