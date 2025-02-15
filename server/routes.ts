@@ -32,6 +32,15 @@ async function getPageContent(pageId: string): Promise<string> {
   }
 }
 
+interface MemStorage {
+  clearLessons(): Promise<void>;
+  insertLesson(lesson: any): Promise<void>;
+  getLessons(): Promise<any[]>;
+  getRandomLessons(count: number): Promise<any[]>;
+  getCachedContent(notionId: string): string | null;
+  updateLessonContent(lessonId: number, content: string): Promise<void>;
+}
+
 export async function registerRoutes(app: Express) {
   app.get("/api/lessons/refresh", async (req, res) => {
     try {
@@ -41,29 +50,22 @@ export async function registerRoutes(app: Express) {
       });
 
       console.log("Total entries found:", response.results.length);
-
       await storage.clearLessons();
 
+      // First, insert all lessons without content for faster initial load
       for (const page of response.results) {
-        // Type assertion to access properties safely
         const props = page.properties as Record<string, any>;
-
-        // Log the properties to help debug
-        console.log("Properties for entry:", page.id, JSON.stringify(props));
-
         const lessonContent = props.Lesson?.title?.[0]?.plain_text;
+
         if (!lessonContent) {
           console.log("Skipping entry with no lesson content:", page.id);
           continue;
         }
 
-        // Fetch the full page content
-        const pageContent = await getPageContent(page.id);
-
         await storage.insertLesson({
           notionId: page.id,
           lesson: lessonContent,
-          content: pageContent,
+          content: null, // Don't fetch content immediately
           importance: props.Importance?.multi_select?.[0]?.name || null,
           category: props.Category?.multi_select?.[0]?.name || null,
           category1: props.Category1?.multi_select?.[0]?.name || null,
@@ -78,6 +80,33 @@ export async function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching from Notion:", error);
       res.status(500).json({ message: "Failed to fetch lessons from Notion" });
+    }
+  });
+
+  // Add new endpoint to fetch content for a specific lesson
+  app.get("/api/lessons/:id/content", async (req, res) => {
+    try {
+      const lessonId = parseInt(req.params.id);
+      const lessons = await storage.getLessons();
+      const lesson = lessons.find(l => l.id === lessonId);
+
+      if (!lesson) {
+        return res.status(404).json({ message: "Lesson not found" });
+      }
+
+      // Check if content is already cached
+      const cachedContent = (storage as MemStorage).getCachedContent(lesson.notionId);
+      if (cachedContent) {
+        return res.json({ content: cachedContent });
+      }
+
+      // If not cached, fetch from Notion
+      const content = await getPageContent(lesson.notionId);
+      await storage.updateLessonContent(lessonId, content);
+      res.json({ content });
+    } catch (error) {
+      console.error("Error fetching lesson content:", error);
+      res.status(500).json({ message: "Failed to fetch lesson content" });
     }
   });
 
