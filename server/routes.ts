@@ -112,7 +112,7 @@ export async function registerRoutes(app: Express) {
 
   app.get("/api/lessons/random", async (req, res) => {
     try {
-      const count = Number(req.query.count) || 3;
+      const count = Number(req.query.count) || 2; // Changed default from 3 to 2
       const lessons = await storage.getRandomLessons(count);
       const response = { lessons };
 
