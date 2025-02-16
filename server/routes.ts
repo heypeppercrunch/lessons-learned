@@ -41,19 +41,42 @@ interface MemStorage {
   updateLessonContent(lessonId: number, content: string): Promise<void>;
 }
 
+async function getAllNotionPages() {
+  const allPages = [];
+  let hasMore = true;
+  let startCursor: string | undefined = undefined;
+
+  while (hasMore) {
+    const response = await notion.databases.query({
+      database_id: DATABASE_ID,
+      start_cursor: startCursor,
+      page_size: 100,
+    });
+
+    allPages.push(...response.results);
+    hasMore = response.has_more;
+    startCursor = response.next_cursor ?? undefined;
+
+    // Add a small delay to avoid rate limiting
+    if (hasMore) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+
+  return allPages;
+}
+
 export async function registerRoutes(app: Express) {
   app.get("/api/lessons/refresh", async (req, res) => {
     try {
       console.log("Fetching from database:", DATABASE_ID);
-      const response = await notion.databases.query({
-        database_id: DATABASE_ID,
-      });
+      const allPages = await getAllNotionPages();
 
-      console.log("Total entries found:", response.results.length);
+      console.log("Total entries found:", allPages.length);
       await storage.clearLessons();
 
       // First, insert all lessons without content for faster initial load
-      for (const page of response.results) {
+      for (const page of allPages) {
         const props = page.properties as Record<string, any>;
         const lessonContent = props.Lesson?.title?.[0]?.plain_text;
 
