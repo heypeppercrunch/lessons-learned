@@ -13,22 +13,44 @@ const DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
 async function getPageContent(pageId: string): Promise<string> {
   try {
-    const blocks = await notion.blocks.children.list({ block_id: pageId });
+    const blocks = await notion.blocks.children.list({ 
+      block_id: pageId,
+      page_size: 100 // 더 많은 블록을 가져오도록 설정
+    });
 
     // Combine all block contents into a single string
     const content = blocks.results.map(block => {
       // Type assertion since we know these blocks are from Notion
       const b = block as any;
-      if (b.type === 'paragraph') {
-        return b.paragraph.rich_text.map((t: any) => t.plain_text).join('');
+
+      // 다양한 블록 타입 처리
+      switch (b.type) {
+        case 'paragraph':
+          return b.paragraph.rich_text.map((t: any) => t.plain_text).join('');
+        case 'heading_1':
+          return `# ${b.heading_1.rich_text.map((t: any) => t.plain_text).join('')}\n`;
+        case 'heading_2':
+          return `## ${b.heading_2.rich_text.map((t: any) => t.plain_text).join('')}\n`;
+        case 'heading_3':
+          return `### ${b.heading_3.rich_text.map((t: any) => t.plain_text).join('')}\n`;
+        case 'bulleted_list_item':
+          return `• ${b.bulleted_list_item.rich_text.map((t: any) => t.plain_text).join('')}\n`;
+        case 'numbered_list_item':
+          return `${b.numbered_list_item.rich_text.map((t: any) => t.plain_text).join('')}\n`;
+        default:
+          return '';
       }
-      return '';
-    }).filter(Boolean).join('\n\n');
+    }).filter(Boolean).join('\n');
+
+    if (!content.trim()) {
+      console.log(`Warning: No content found for page ${pageId}`);
+      return "No content available";
+    }
 
     return content;
   } catch (error) {
     console.error(`Error fetching content for page ${pageId}:`, error);
-    return '';
+    return "Failed to load content";
   }
 }
 
